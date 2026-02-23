@@ -1207,9 +1207,25 @@
 
       const { x, y } = screenToSvgCoords(clientX, clientY);
 
-      if (straightLineMode && straightLineStart) {
+      const isShiftPressed = e.shiftKey || straightLineMode;
+      
+      if (isShiftPressed && straightLineStart) {
         const stroke = lastPoint.stroke;
-        stroke.points[1] = { x, y };
+        const dx = x - straightLineStart.x;
+        const dy = y - straightLineStart.y;
+        let constrainedX = x;
+        let constrainedY = y;
+        if (Math.abs(dx) > Math.abs(dy)) {
+          constrainedY = straightLineStart.y;
+        } else {
+          constrainedX = straightLineStart.x;
+        }
+        stroke.points.push({ x: constrainedX, y: constrainedY });
+        lastPoint = { x: constrainedX, y: constrainedY, stroke };
+      } else if (isShiftPressed) {
+        const stroke = lastPoint.stroke;
+        stroke.points.push({ x, y });
+        lastPoint = { x, y, stroke };
       } else {
         const dx = x - lastPoint.x;
         const dy = y - lastPoint.y;
@@ -1271,8 +1287,11 @@
     canvas.addEventListener('mouseup', stopDrawing);
     canvas.addEventListener('mouseleave', stopDrawing);
 
-    document.addEventListener('keydown', (e) => {
+    window.addEventListener('keydown', (e) => {
       if (e.key === 'Shift') {
+        if (isDrawing && currentMode === 'draw' && lastPoint) {
+          straightLineStart = { x: lastPoint.x, y: lastPoint.y };
+        }
         straightLineMode = true;
       }
       if (e.key === 'Alt') {
@@ -1280,9 +1299,10 @@
       }
     });
 
-    document.addEventListener('keyup', (e) => {
+    window.addEventListener('keyup', (e) => {
       if (e.key === 'Shift') {
         straightLineMode = false;
+        straightLineStart = null;
       }
       if (e.key === 'Alt') {
         altKeyPressed = false;
