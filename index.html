@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caligraphy</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --border: 1px solid black;
+      --margin: 5px;
+      --bg: white;
+      --fg: black;
+    }
+
+    body {
+      font-family: monospace;
+      font-size: 10px;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      padding: var(--margin);
+    }
+
+    .mode-switch {
+      position: fixed;
+      top: 5px;
+      right: 5px;
+      display: flex;
+      gap: 2px;
+      z-index: 100;
+    }
+
+    .mode-btn {
+      font-family: monospace;
+      font-size: 10px;
+      background: white;
+      border: var(--border);
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+
+    .mode-btn.active {
+      background: black;
+      color: white;
+    }
+
+    .container {
+      display: flex;
+      gap: var(--margin);
+      height: calc(100vh - 10px);
+    }
+
+    .left-panel {
+      width: 200px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--margin);
+    }
+
+    .panel-section {
+      border: var(--border);
+      padding: var(--margin);
+    }
+
+    .letter-list {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 2px;
+    }
+
+    .letter-btn {
+      font-family: monospace;
+      font-size: 10px;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 2px 4px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .letter-btn:hover {
+      background: #eee;
+    }
+
+    .letter-btn.active {
+      background: black;
+      color: white;
+    }
+
+    .letter-btn.has-data {
+      border: 2px solid black;
+    }
+
+    .letter-btn.has-data.active {
+      border: 2px solid black;
+      background: black;
+      color: white;
+    }
+
+    .option-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    .option-row label {
+      flex: 1;
+    }
+
+    .option-row input[type="range"] {
+      width: 60px;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 1px;
+      background: black;
+      border: none;
+      outline: none;
+    }
+
+    .option-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 8px;
+      height: 8px;
+      background: black;
+      cursor: pointer;
+    }
+
+    .option-row input[type="range"]::-moz-range-thumb {
+      width: 8px;
+      height: 8px;
+      background: black;
+      border: none;
+      cursor: pointer;
+    }
+
+    .option-row input[type="number"] {
+      width: 40px;
+      font-family: monospace;
+      font-size: 10px;
+      border: var(--border);
+      padding: 2px;
+    }
+
+    .btn {
+      font-family: monospace;
+      font-size: 10px;
+      background: white;
+      border: var(--border);
+      padding: 4px 8px;
+      cursor: pointer;
+      margin-right: 2px;
+      margin-bottom: 2px;
+    }
+
+    .btn:hover {
+      background: #eee;
+    }
+
+    .canvas-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .canvas-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 560px;
+      max-height: 800px;
+      pointer-events: none;
+    }
+
+    #drawing-canvas {
+      background: white;
+      cursor: crosshair;
+      border: var(--border);
+      display: block;
+      width: 100%;
+      height: 100%;
+      pointer-events: auto;
+    }
+
+    #guides-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .guide-handle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: red;
+      pointer-events: auto;
+    }
+
+    .guide-line {
+      position: absolute;
+      background: red;
+      pointer-events: none;
+    }
+
+    .guide-line-y {
+      height: 1px;
+      left: 0;
+      right: 0;
+    }
+
+    .guide-line-x {
+      width: 1px;
+      top: 0;
+      bottom: 0;
+    }
+
+    .guide-handle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: red;
+      pointer-events: auto;
+    }
+
+    .guide-handle-y {
+      right: 0;
+      transform: translateY(-50%);
+      cursor: ns-resize;
+    }
+
+    .guide-handle-x {
+      bottom: 0;
+      transform: translateX(-50%);
+      cursor: ew-resize;
+    }
+
+    .drop-zone {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.9);
+      border: 2px dashed black;
+    }
+
+    .drop-zone.active {
+      display: flex;
+    }
+
+    .status {
+      position: fixed;
+      bottom: var(--margin);
+      right: var(--margin);
+      font-size: 10px;
+    }
+
+    .calame-preview {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 4px;
+      border: var(--border);
+      padding: 2px;
+    }
+
+    #calame-preview-svg {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="mode-switch">
+    <button class="mode-btn active" id="draw-mode-btn">Draw</button>
+    <button class="mode-btn" id="edit-mode-btn">Edit</button>
+  </div>
+  <div class="container">
+    <div class="left-panel">
+      <div class="panel-section">
+        <div>LetteRS</div>
+        <div class="letter-list" id="letter-list"></div>
+        <div style="margin-top: 4px; font-size: 9px;">Press key to switch</div>
+      </div>
+
+      <div class="panel-section">
+        <div>Calame</div>
+        <div class="option-row">
+          <label>Thickness</label>
+          <input type="range" id="thickness" min="1" max="20" value="3">
+          <span id="thickness-val">3</span>
+        </div>
+        <div class="option-row">
+          <label>Length</label>
+          <input type="range" id="length" min="1" max="100" value="50">
+          <span id="length-val">50</span>
+        </div>
+        <div class="option-row">
+          <label>Angle</label>
+          <input type="range" id="angle" min="0" max="360" value="45">
+          <span id="angle-val">45</span>
+        </div>
+        <div class="calame-preview">
+          <svg id="calame-preview-svg" width="60" height="60"></svg>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div>Guides Y</div>
+        <div class="option-row">
+          <label>baseline</label>
+          <input type="range" id="guide-baseline" min="0" max="560" value="450">
+          <span id="guide-baseline-val">450</span>
+        </div>
+        <div class="option-row">
+          <label>x-height</label>
+          <input type="range" id="guide-xheight" min="0" max="560" value="350">
+          <span id="guide-xheight-val">350</span>
+        </div>
+        <div class="option-row">
+          <label>top</label>
+          <input type="range" id="guide-top" min="0" max="560" value="50">
+          <span id="guide-top-val">50</span>
+        </div>
+        <div class="option-row">
+          <label>bottom</label>
+          <input type="range" id="guide-bottom" min="0" max="560" value="520">
+          <span id="guide-bottom-val">520</span>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div>Guides X</div>
+        <div class="option-row">
+          <label>pad L</label>
+          <input type="range" id="guide-padleft" min="0" max="400" value="40">
+          <span id="guide-padleft-val">40</span>
+        </div>
+        <div class="option-row">
+          <label>max L</label>
+          <input type="range" id="guide-maxleft" min="0" max="400" value="80">
+          <span id="guide-maxleft-val">80</span>
+        </div>
+        <div class="option-row">
+          <label>center</label>
+          <input type="range" id="guide-center" min="0" max="400" value="200">
+          <span id="guide-center-val">200</span>
+        </div>
+        <div class="option-row">
+          <label>max R</label>
+          <input type="range" id="guide-maxright" min="0" max="400" value="320">
+          <span id="guide-maxright-val">320</span>
+        </div>
+        <div class="option-row">
+          <label>pad R</label>
+          <input type="range" id="guide-padright" min="0" max="400" value="360">
+          <span id="guide-padright-val">360</span>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div>Simplify</div>
+        <div class="option-row">
+          <label>tolerance</label>
+          <input type="range" id="simplify-tolerance" min="1" max="50" value="5">
+          <span id="simplify-tolerance-val">5</span>
+        </div>
+        <button class="btn" id="simplify-btn">Simplify</button>
+        <button class="btn" id="resample-btn">Resample</button>
+      </div>
+
+      <div class="panel-section">
+        <div>Actions</div>
+        <button class="btn" id="clear-btn">Clear</button>
+        <button class="btn" id="undo-btn">Undo</button>
+        <button class="btn" id="delete-point-btn">Del Point</button>
+        <button class="btn" id="delete-stroke-btn">Del Shape</button>
+        <button class="btn" id="delete-selected-btn">Del Selected</button>
+        <button class="btn" id="clear-selection-btn">Clear Sel</button>
+        <button class="btn" id="save-btn">Save JSON</button>
+        <button class="btn" id="export-svg-btn">Export SVG</button>
+        <div style="margin-top: 4px;">
+          <span>Drop JSON to load</span>
+        </div>
+        <div style="margin-top: 4px;">
+          <span>Hold Shift for straight lines</span>
+        </div>
+        <div style="margin-top: 4px;">
+          <span>Click trace to select shape</span>
+        </div>
+        <div style="margin-top: 4px;">
+          <span>Shift+click to add to selection</span>
+        </div>
+        <div style="margin-top: 4px;">
+          <span>Arrows to move (Shift: 10px)</span>
+        </div>
+        <div style="margin-top: 4px;">
+          <span>Drag to select multiple points</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-container" id="canvas-container">
+      <div class="canvas-inner">
+        <svg id="drawing-canvas" viewBox="0 0 400 560" preserveAspectRatio="xMidYMid meet">
+          <g id="drawings-layer"></g>
+        </svg>
+        <div id="guides-container"></div>
+      </div>
+      <div class="drop-zone" id="drop-zone">Drop JSON here</div>
+    </div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <script>
+    const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
+    const CANVAS_WIDTH = 400;
+    const CANVAS_HEIGHT = 560;
+
+    function screenToSvgCoords(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = CANVAS_WIDTH / rect.width;
+      const scaleY = CANVAS_HEIGHT / rect.height;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
+    }
+
+    let currentLetter = 'A';
+    let letterData = {};
+    let history = [];
+    let isDrawing = false;
+    let currentMode = 'draw';
+    let isEditing = false;
+    let isSelecting = false;
+    let isSelectingRect = false;
+    let selectRectStart = null;
+    let selectedPoints = new Set();
+    let moveSelection = null;
+    let editingPoint = null;
+    let lastPoint = null;
+    let straightLineMode = false;
+    let straightLineStart = null;
+    let lastClickTime = 0;
+    let lastClickKey = null;
+    const MIN_POINT_DISTANCE = 8;
+    const MAX_HISTORY = 50;
+    const DOUBLE_CLICK_DELAY = 300;
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('draw-mode-btn').classList.toggle('active', mode === 'draw');
+      document.getElementById('edit-mode-btn').classList.toggle('active', mode === 'edit');
+      if (mode === 'draw') {
+        selectedPoints.clear();
+      }
+      renderLetter();
+    }
+
+    function saveState() {
+      const state = JSON.stringify(letterData);
+      history.push(state);
+      if (history.length > MAX_HISTORY) {
+        history.shift();
+      }
+    }
+
+    function undo() {
+      if (history.length > 0) {
+        const state = history.pop();
+        letterData = JSON.parse(state);
+        renderLetter();
+      }
+    }
+
+    function deletePoint(pointIndex) {
+      const strokes = letterData[currentLetter];
+      if (strokes.length === 0) return;
+      
+      const lastStroke = strokes[strokes.length - 1];
+      if (lastStroke.points.length > pointIndex) {
+        saveState();
+        lastStroke.points.splice(pointIndex, 1);
+        lastStroke.simplified = null;
+        renderLetter();
+      }
+    }
+
+    function deleteStroke(strokeIndex) {
+      const strokes = letterData[currentLetter];
+      if (strokes.length > strokeIndex) {
+        saveState();
+        strokes.splice(strokeIndex, 1);
+        renderLetter();
+      }
+    }
+
+    function simplifyPoints(points, tolerance = 2) {
+      if (points.length <= 2) return points;
+      
+      const sqTolerance = tolerance * tolerance;
+      let prevPoint = points[0];
+      let newPoints = [prevPoint];
+      
+      for (let i = 1; i < points.length - 1; i++) {
+        const point = points[i];
+        const dx = point.x - prevPoint.x;
+        const dy = point.y - prevPoint.y;
+        if (dx * dx + dy * dy > sqTolerance) {
+          newPoints.push(point);
+          prevPoint = point;
+        }
+      }
+      newPoints.push(points[points.length - 1]);
+      return newPoints;
+    }
+
+    function resamplePoints(points, targetCount) {
+      if (points.length < 2) return points;
+      if (points.length >= targetCount) return points;
+      
+      let totalLength = 0;
+      for (let i = 1; i < points.length; i++) {
+        const dx = points[i].x - points[i-1].x;
+        const dy = points[i].y - points[i-1].y;
+        totalLength += Math.sqrt(dx * dx + dy * dy);
+      }
+      
+      const step = totalLength / (targetCount - 1);
+      const newPoints = [points[0]];
+      let currentLength = 0;
+      let pointIndex = 0;
+      
+      for (let i = 1; i < targetCount - 1; i++) {
+        const targetLength = i * step;
+        while (pointIndex < points.length - 1 && currentLength < targetLength) {
+          pointIndex++;
+          const dx = points[pointIndex].x - points[pointIndex-1].x;
+          const dy = points[pointIndex].y - points[pointIndex-1].y;
+          currentLength += Math.sqrt(dx * dx + dy * dy);
+        }
+        
+        const prevPoint = points[pointIndex - 1] || points[0];
+        const nextPoint = points[pointIndex] || points[points.length - 1];
+        
+        if (pointIndex > 0 && pointIndex < points.length) {
+          const segLength = Math.sqrt(
+            Math.pow(nextPoint.x - prevPoint.x, 2) + 
+            Math.pow(nextPoint.y - prevPoint.y, 2)
+          );
+          if (segLength > 0) {
+            const t = (targetLength - currentLength + segLength) / segLength;
+            newPoints.push({
+              x: prevPoint.x + t * (nextPoint.x - prevPoint.x),
+              y: prevPoint.y + t * (nextPoint.y - prevPoint.y)
+            });
+          } else {
+            newPoints.push(prevPoint);
+          }
+        } else {
+          newPoints.push(points[pointIndex] || points[0]);
+        }
+      }
+      
+      newPoints.push(points[points.length - 1]);
+      return newPoints;
+    }
+
+    function simplifySmoothPoints(points, targetCount) {
+      if (points.length <= 2) return points;
+      if (points.length <= targetCount) return points;
+      
+      const smoothed = smoothPoints(points, 2);
+      return resamplePoints(smoothed, targetCount);
+    }
+
+    function smoothPoints(points, iterations = 1) {
+      if (points.length < 3) return points;
+      
+      let result = points.slice();
+      for (let iter = 0; iter < iterations; iter++) {
+        const smoothed = [result[0]];
+        for (let i = 1; i < result.length - 1; i++) {
+          smoothed.push({
+            x: (result[i-1].x + result[i].x * 2 + result[i+1].x) / 4,
+            y: (result[i-1].y + result[i].y * 2 + result[i+1].y) / 4
+          });
+        }
+        smoothed.push(result[result.length - 1]);
+        result = smoothed;
+      }
+      return result;
+    }
+
+    LETTERS.forEach(l => {
+      letterData[l] = [];
+    });
+
+    const canvas = document.getElementById('drawing-canvas');
+    const letterList = document.getElementById('letter-list');
+    const dropZone = document.getElementById('drop-zone');
+    const status = document.getElementById('status');
+    const calamePreview = document.getElementById('calame-preview-svg');
+    const guidesContainer = document.getElementById('guides-container');
+    const drawingsLayer = document.getElementById('drawings-layer');
+
+    const fontMetrics = {
+      baseline: 450,
+      xheight: 350,
+      top: 50,
+      bottom: 520,
+      padLeft: 40,
+      maxLeft: 80,
+      center: 200,
+      maxRight: 320,
+      padRight: 360
+    };
+
+    let draggingGuide = null;
+    let isDraggingGuide = false;
+
+    function renderGuides() {
+      guidesContainer.innerHTML = '';
+
+      const guides = [
+        { y: fontMetrics.baseline, key: 'baseline' },
+        { y: fontMetrics.xheight, key: 'xheight' },
+        { y: fontMetrics.top, key: 'top' },
+        { y: fontMetrics.bottom, key: 'bottom' }
+      ];
+
+      const xGuides = [
+        { x: fontMetrics.padLeft, key: 'padleft' },
+        { x: fontMetrics.maxLeft, key: 'maxleft' },
+        { x: fontMetrics.center, key: 'center' },
+        { x: fontMetrics.maxRight, key: 'maxright' },
+        { x: fontMetrics.padRight, key: 'padright' }
+      ];
+
+      guides.forEach(g => {
+        const line = document.createElement('div');
+        line.className = 'guide-line guide-line-y';
+        line.style.top = (g.y / 560 * 100) + '%';
+        guidesContainer.appendChild(line);
+
+        const handle = document.createElement('div');
+        handle.className = 'guide-handle guide-handle-y';
+        handle.style.top = (g.y / 560 * 100) + '%';
+        handle.dataset.guide = 'y:' + g.key;
+        handle.addEventListener('mousedown', startDragGuide);
+        handle.addEventListener('touchstart', startDragGuide);
+        guidesContainer.appendChild(handle);
+      });
+
+      xGuides.forEach(g => {
+        const line = document.createElement('div');
+        line.className = 'guide-line guide-line-x';
+        line.style.left = (g.x / 400 * 100) + '%';
+        guidesContainer.appendChild(line);
+
+        const handle = document.createElement('div');
+        handle.className = 'guide-handle guide-handle-x';
+        handle.style.left = (g.x / 400 * 100) + '%';
+        handle.dataset.guide = 'x:' + g.key;
+        handle.addEventListener('mousedown', startDragGuide);
+        handle.addEventListener('touchstart', startDragGuide);
+        guidesContainer.appendChild(handle);
+      });
+    }
+
+    function getGuideCoordsFromEvent(e) {
+      const rect = guidesContainer.getBoundingClientRect();
+      const clientX = e.clientX || e.touches[0].clientX;
+      const clientY = e.clientY || e.touches[0].clientY;
+      const x = ((clientX - rect.left) / rect.width) * 400;
+      const y = ((clientY - rect.top) / rect.height) * 560;
+      return { x, y };
+    }
+
+    function startDragGuide(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      isDraggingGuide = true;
+      const guideType = e.target.dataset.guide;
+      draggingGuide = guideType;
+      
+      function onMove(evt) {
+        if (!draggingGuide) return;
+        const { x, y } = getGuideCoordsFromEvent(evt);
+
+        const [type, key] = draggingGuide.split(':');
+        
+        if (type === 'y') {
+          const newVal = Math.max(0, Math.min(560, Math.round(y)));
+          fontMetrics[key] = newVal;
+          const input = document.getElementById('guide-' + key);
+          const val = document.getElementById('guide-' + key + '-val');
+          if (input) {
+            input.value = newVal;
+            val.textContent = newVal;
+          }
+        } else {
+          const newVal = Math.max(0, Math.min(400, Math.round(x)));
+          fontMetrics[key] = newVal;
+          const input = document.getElementById('guide-' + key);
+          const val = document.getElementById('guide-' + key + '-val');
+          if (input) {
+            input.value = newVal;
+            val.textContent = newVal;
+          }
+        }
+        
+        renderGuides();
+      }
+
+      function onUp() {
+        draggingGuide = null;
+        isDraggingGuide = false;
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
+      }
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove);
+      document.addEventListener('touchend', onUp);
+    }
+
+    function initLetterList() {
+      LETTERS.forEach(letter => {
+        const btn = document.createElement('button');
+        btn.className = 'letter-btn' + (letter === currentLetter ? ' active' : '');
+        btn.textContent = letter;
+        btn.onclick = () => selectLetter(letter);
+        btn.dataset.letter = letter;
+        letterList.appendChild(btn);
+      });
+    }
+
+    function updateLetterButtonStates() {
+      document.querySelectorAll('.letter-btn').forEach(btn => {
+        const letter = btn.dataset.letter;
+        const hasData = letterData[letter] && letterData[letter].length > 0 && 
+          letterData[letter].some(s => s.points && s.points.length > 0);
+        btn.classList.toggle('has-data', hasData);
+      });
+    }
+
+    function selectLetter(letter) {
+      currentLetter = letter;
+      document.querySelectorAll('.letter-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', LETTERS[i] === letter);
+      });
+      renderLetter();
+    }
+
+    function getCalamePoints(x, y, prevX, prevY) {
+      const thickness = parseInt(document.getElementById('thickness').value);
+      const length = parseInt(document.getElementById('length').value);
+      const angle = parseInt(document.getElementById('angle').value) * Math.PI / 180;
+
+      if (!prevX || !prevY) {
+        return [[x - thickness/2, y - length/2], [x + thickness/2, y - length/2], [x + thickness/2, y + length/2], [x - thickness/2, y + length/2]];
+      }
+
+      const dx = x - prevX;
+      const dy = y - prevY;
+      const speed = Math.sqrt(dx * dx + dy * dy);
+      if (speed < 0.1) return null;
+
+      const nx = -dy / speed;
+      const ny = dx / speed;
+
+      const rad = angle;
+      const tipX = Math.cos(rad) * length;
+      const tipY = Math.sin(rad) * length;
+
+      const baseWidth = thickness;
+
+      return [
+        [prevX + nx * baseWidth/2, prevY + ny * baseWidth/2],
+        [x + nx * baseWidth/2, y + ny * baseWidth/2],
+        [x + nx * baseWidth/2 + tipX, y + ny * baseWidth/2 + tipY],
+        [prevX + nx * baseWidth/2 + tipX, prevY + ny * baseWidth/2 + tipY]
+      ];
+    }
+
+    function renderLetter() {
+      drawingsLayer.innerHTML = '';
+
+      if (isSelectingRect && selectRectStart) {
+        const x1 = Math.min(selectRectStart.x, selectRectStart.currentX);
+        const y1 = Math.min(selectRectStart.y, selectRectStart.currentY);
+        const x2 = Math.max(selectRectStart.x, selectRectStart.currentX);
+        const y2 = Math.max(selectRectStart.y, selectRectStart.currentY);
+        
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', x1);
+        rect.setAttribute('y', y1);
+        rect.setAttribute('width', x2 - x1);
+        rect.setAttribute('height', y2 - y1);
+        rect.setAttribute('fill', 'rgba(0, 0, 255, 0.1)');
+        rect.setAttribute('stroke', 'blue');
+        rect.setAttribute('stroke-width', '1');
+        rect.setAttribute('stroke-dasharray', '4,4');
+        drawingsLayer.appendChild(rect);
+      }
+
+      const strokes = letterData[currentLetter];
+      strokes.forEach((stroke, strokeIndex) => {
+        const points = stroke.simplified || stroke.points;
+        if (points.length < 2) return;
+
+        const smoothedPoints = smoothPoints(points);
+
+        for (let i = 1; i < smoothedPoints.length; i++) {
+          const p1 = smoothedPoints[i - 1];
+          const p2 = smoothedPoints[i];
+          const calamePoints = getCalamePoints(p2.x, p2.y, p1.x, p1.y);
+          
+          if (calamePoints) {
+            const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            poly.setAttribute('points', calamePoints.map(p => p.join(',')).join(' '));
+            poly.setAttribute('fill', 'black');
+            drawingsLayer.appendChild(poly);
+          }
+        }
+
+        if (!isDrawing && currentMode === 'edit') {
+          const strokePath = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          const pathPoints = smoothedPoints.map(p => `${p.x},${p.y}`).join(' ');
+          strokePath.setAttribute('points', pathPoints);
+          strokePath.setAttribute('fill', 'transparent');
+          strokePath.setAttribute('stroke', 'transparent');
+          strokePath.setAttribute('stroke-width', '10');
+          strokePath.setAttribute('cursor', 'pointer');
+          strokePath.dataset.strokeIndex = strokeIndex;
+          strokePath.addEventListener('click', selectStroke);
+          strokePath.addEventListener('touchstart', selectStroke);
+          drawingsLayer.appendChild(strokePath);
+
+          if (points.length > 1) {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            line.setAttribute('points', points.map(p => `${p.x},${p.y}`).join(' '));
+            line.setAttribute('fill', 'none');
+            line.setAttribute('stroke', 'red');
+            line.setAttribute('stroke-width', '1');
+            drawingsLayer.appendChild(line);
+          }
+
+          points.forEach((p, pointIndex) => {
+            const key = strokeIndex + '-' + pointIndex;
+            const isSelected = selectedPoints.has(key);
+            const handle = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            handle.setAttribute('x', p.x - 2.5);
+            handle.setAttribute('y', p.y - 2.5);
+            handle.setAttribute('width', 5);
+            handle.setAttribute('height', 5);
+            handle.setAttribute('fill', isSelected ? 'red' : 'white');
+            handle.setAttribute('stroke', 'red');
+            handle.setAttribute('stroke-width', '1');
+            handle.setAttribute('cursor', 'pointer');
+            handle.dataset.strokeIndex = strokeIndex;
+            handle.dataset.pointIndex = pointIndex;
+            handle.addEventListener('mousedown', startSelectPoint);
+            handle.addEventListener('contextmenu', deletePointByHandle);
+            handle.addEventListener('touchstart', startEditPoint);
+            drawingsLayer.appendChild(handle);
+          });
+        }
+      });
+      updateLetterButtonStates();
+    }
+
+    function getPointKey(strokeIndex, pointIndex) {
+      return strokeIndex + '-' + pointIndex;
+    }
+
+    function startSelectPoint(e) {
+      e.stopPropagation();
+      
+      const strokeIndex = parseInt(e.target.dataset.strokeIndex);
+      const pointIndex = parseInt(e.target.dataset.pointIndex);
+      const key = getPointKey(strokeIndex, pointIndex);
+      
+      const now = Date.now();
+      const isDoubleClick = (now - lastClickTime < DOUBLE_CLICK_DELAY) && (lastClickKey === key);
+      lastClickTime = now;
+      lastClickKey = key;
+      
+      if (e.shiftKey) {
+        if (selectedPoints.has(key)) {
+          selectedPoints.delete(key);
+        } else {
+          selectedPoints.add(key);
+        }
+      } else if (isDoubleClick) {
+        const stroke = letterData[currentLetter][strokeIndex];
+        saveState();
+        selectedPoints.clear();
+        stroke.points.forEach((_, pi) => {
+          selectedPoints.add(getPointKey(strokeIndex, pi));
+        });
+      } else if (selectedPoints.has(key)) {
+        saveState();
+        isSelecting = true;
+        const { x, y } = screenToSvgCoords(e.clientX, e.clientY);
+        moveSelection = { startX: x, startY: y, strokeIndex, pointIndex };
+        document.addEventListener('mousemove', moveSelectedPoints);
+        document.addEventListener('mouseup', stopMoveSelection);
+      } else {
+        selectedPoints.clear();
+        selectedPoints.add(key);
+        saveState();
+        isEditing = true;
+        editingPoint = { strokeIndex, pointIndex };
+        document.addEventListener('mousemove', moveEditPoint);
+        document.addEventListener('mouseup', stopEditPoint);
+      }
+      renderLetter();
+    }
+
+    function moveSelectedPoints(e) {
+      if (!isSelecting || !moveSelection) return;
+      
+      const clientX = e.clientX || e.touches[0].clientX;
+      const clientY = e.clientY || e.touches[0].clientY;
+      const { x, y } = screenToSvgCoords(clientX, clientY);
+      
+      let dx = x - moveSelection.startX;
+      let dy = y - moveSelection.startY;
+      
+      if (e.shiftKey && !moveSelection.axis) {
+        if (Math.abs(dx) > Math.abs(dy)) {
+          moveSelection.axis = 'x';
+          moveSelection.startY = y;
+        } else {
+          moveSelection.axis = 'y';
+          moveSelection.startX = x;
+        }
+      }
+      
+      if (moveSelection.axis === 'x') {
+        dy = 0;
+      } else if (moveSelection.axis === 'y') {
+        dx = 0;
+      }
+      
+      selectedPoints.forEach(key => {
+        const [si, pi] = key.split('-').map(Number);
+        const stroke = letterData[currentLetter][si];
+        if (stroke.points[pi]) {
+          stroke.points[pi].x += dx;
+          stroke.points[pi].y += dy;
+          stroke.simplified = null;
+        }
+      });
+      
+      moveSelection.startX = x;
+      moveSelection.startY = y;
+      renderLetter();
+    }
+
+    function stopMoveSelection() {
+      isSelecting = false;
+      if (moveSelection) {
+        moveSelection.axis = null;
+      }
+      moveSelection = null;
+      document.removeEventListener('mousemove', moveSelectedPoints);
+      document.removeEventListener('mouseup', stopMoveSelection);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (selectedPoints.size === 0) return;
+      if (e.target.tagName === 'INPUT') return;
+      
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        deleteSelectedPoints();
+        return;
+      }
+      
+      const step = e.shiftKey ? 10 : 1;
+      let dx = 0, dy = 0;
+      
+      if (e.key === 'ArrowUp') dy = -step;
+      else if (e.key === 'ArrowDown') dy = step;
+      else if (e.key === 'ArrowLeft') dx = -step;
+      else if (e.key === 'ArrowRight') dx = step;
+      else return;
+      
+      e.preventDefault();
+      saveState();
+      
+      selectedPoints.forEach(key => {
+        const [si, pi] = key.split('-').map(Number);
+        const stroke = letterData[currentLetter][si];
+        if (stroke && stroke.points[pi]) {
+          stroke.points[pi].x += dx;
+          stroke.points[pi].y += dy;
+          stroke.simplified = null;
+        }
+      });
+      
+      renderLetter();
+    });
+
+    function selectStroke(e) {
+      e.stopPropagation();
+      const strokeIndex = parseInt(e.target.dataset.strokeIndex);
+      const stroke = letterData[currentLetter][strokeIndex];
+      
+      if (e.shiftKey) {
+        stroke.points.forEach((_, pi) => {
+          const key = getPointKey(strokeIndex, pi);
+          if (selectedPoints.has(key)) {
+            selectedPoints.delete(key);
+          } else {
+            selectedPoints.add(key);
+          }
+        });
+      } else {
+        selectedPoints.clear();
+        stroke.points.forEach((_, pi) => {
+          selectedPoints.add(getPointKey(strokeIndex, pi));
+        });
+      }
+      renderLetter();
+    }
+
+    function deleteSelectedPoints() {
+      if (selectedPoints.size === 0) return;
+      
+      saveState();
+      
+      const strokes = letterData[currentLetter];
+      const indicesToDelete = new Set();
+      
+      selectedPoints.forEach(key => {
+        const [si, pi] = key.split('-').map(Number);
+        const stroke = strokes[si];
+        if (stroke && stroke.points[pi]) {
+          stroke.points.splice(pi, 1);
+          stroke.simplified = null;
+          indicesToDelete.add(si);
+        }
+      });
+      
+      selectedPoints.clear();
+      
+      indicesToDelete.forEach(si => {
+        if (strokes[si].points.length === 0) {
+          strokes.splice(si, 1);
+        }
+      });
+      
+      renderLetter();
+    }
+
+    function deletePointByHandle(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const strokeIndex = parseInt(e.target.dataset.strokeIndex);
+      const pointIndex = parseInt(e.target.dataset.pointIndex);
+      const stroke = letterData[currentLetter][strokeIndex];
+      if (stroke.points.length > pointIndex) {
+        saveState();
+        stroke.points.splice(pointIndex, 1);
+        stroke.simplified = null;
+        renderLetter();
+      }
+    }
+
+    function startEditPoint(e) {
+      e.stopPropagation();
+      saveState();
+      isEditing = true;
+      const strokeIndex = parseInt(e.target.dataset.strokeIndex);
+      const pointIndex = parseInt(e.target.dataset.pointIndex);
+      editingPoint = { strokeIndex, pointIndex };
+      
+      document.addEventListener('mousemove', moveEditPoint);
+      document.addEventListener('mouseup', stopEditPoint);
+      document.addEventListener('touchmove', moveEditPoint);
+      document.addEventListener('touchend', stopEditPoint);
+    }
+
+    function moveEditPoint(e) {
+      if (!isEditing || !editingPoint) return;
+      
+      const clientX = e.clientX || e.touches[0].clientX;
+      const clientY = e.clientY || e.touches[0].clientY;
+      const { x, y } = screenToSvgCoords(clientX, clientY);
+      
+      const stroke = letterData[currentLetter][editingPoint.strokeIndex];
+      stroke.points[editingPoint.pointIndex] = { x, y };
+      stroke.simplified = null;
+      
+      renderLetter();
+    }
+
+    function stopEditPoint() {
+      if (isEditing && editingPoint) {
+        const stroke = letterData[currentLetter][editingPoint.strokeIndex];
+        stroke.simplified = simplifyPoints(stroke.points, 3);
+      }
+      isEditing = false;
+      editingPoint = null;
+      document.removeEventListener('mousemove', moveEditPoint);
+      document.removeEventListener('mouseup', stopEditPoint);
+      document.removeEventListener('touchmove', moveEditPoint);
+      document.removeEventListener('touchend', stopEditPoint);
+      renderLetter();
+    }
+
+    function startDrawing(e) {
+      if (isDraggingGuide) return;
+      
+      const clientX = e.clientX || e.touches[0].clientX;
+      const clientY = e.clientY || e.touches[0].clientY;
+      
+      if (currentMode === 'draw') {
+        if (e.target.tagName === 'circle' || e.target.tagName === 'rect') return;
+        if (e.target.tagName === 'polygon' && e.target.getAttribute('fill') === 'transparent') return;
+        
+        saveState();
+        selectedPoints.clear();
+        
+        const { x, y } = screenToSvgCoords(clientX, clientY);
+
+        straightLineMode = e.shiftKey;
+        isDrawing = true;
+
+        if (straightLineMode) {
+          straightLineStart = { x, y };
+          const stroke = { points: [{ x, y }, { x, y }], simplified: null };
+          letterData[currentLetter].push(stroke);
+          lastPoint = { x, y, stroke };
+        } else {
+          const stroke = { points: [{ x, y }], simplified: null };
+          letterData[currentLetter].push(stroke);
+          lastPoint = { x, y, stroke };
+        }
+      } else if (currentMode === 'edit') {
+        if (e.target.tagName === 'circle' || e.target.tagName === 'rect') return;
+        if (e.target.tagName === 'polygon') {
+          if (e.target.getAttribute('fill') === 'transparent') return;
+        }
+        
+        selectedPoints.clear();
+        const { x, y } = screenToSvgCoords(clientX, clientY);
+        isSelectingRect = true;
+        selectRectStart = { x, y, currentX: x, currentY: y };
+        renderLetter();
+      }
+
+      renderLetter();
+    }
+
+    function draw(e) {
+      const clientX = e.clientX || e.touches[0].clientX;
+      const clientY = e.clientY || e.touches[0].clientY;
+      
+      if (isSelectingRect && currentMode === 'edit') {
+        const { x, y } = screenToSvgCoords(clientX, clientY);
+        selectRectStart.currentX = x;
+        selectRectStart.currentY = y;
+        renderLetter();
+        return;
+      }
+      
+      if (!isDrawing) return;
+
+      const { x, y } = screenToSvgCoords(clientX, clientY);
+
+      if (straightLineMode && straightLineStart) {
+        const stroke = lastPoint.stroke;
+        stroke.points[1] = { x, y };
+      } else {
+        const dx = x - lastPoint.x;
+        const dy = y - lastPoint.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist >= MIN_POINT_DISTANCE) {
+          lastPoint.stroke.points.push({ x, y });
+          lastPoint = { x, y, stroke: lastPoint.stroke };
+        }
+      }
+      
+      renderLetter();
+    }
+
+    function stopDrawing() {
+      if (isSelectingRect && currentMode === 'edit' && selectRectStart) {
+        const x1 = Math.min(selectRectStart.x, selectRectStart.currentX);
+        const y1 = Math.min(selectRectStart.y, selectRectStart.currentY);
+        const x2 = Math.max(selectRectStart.x, selectRectStart.currentX);
+        const y2 = Math.max(selectRectStart.y, selectRectStart.currentY);
+        
+        saveState();
+        
+        const strokes = letterData[currentLetter];
+        strokes.forEach((stroke, si) => {
+          stroke.points.forEach((point, pi) => {
+            if (point.x >= x1 && point.x <= x2 && point.y >= y1 && point.y <= y2) {
+              selectedPoints.add(getPointKey(si, pi));
+            }
+          });
+        });
+        
+        isSelectingRect = false;
+        selectRectStart = null;
+        renderLetter();
+        return;
+      }
+      
+      if (isDrawing && lastPoint && lastPoint.stroke) {
+        lastPoint.stroke.simplified = simplifyPoints(lastPoint.stroke.points, 3);
+      }
+      isDrawing = false;
+      lastPoint = null;
+      straightLineStart = null;
+    }
+
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseleave', stopDrawing);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Shift') {
+        straightLineMode = true;
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'Shift') {
+        straightLineMode = false;
+      }
+    });
+
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e); });
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
+    canvas.addEventListener('touchend', stopDrawing);
+
+    ['thickness', 'length', 'angle'].forEach(id => {
+      const input = document.getElementById(id);
+      const val = document.getElementById(id + '-val');
+      input.addEventListener('input', () => {
+        val.textContent = input.value;
+        renderLetter();
+        updateCalamePreview();
+      });
+    });
+
+    const guideKeys = ['baseline', 'xheight', 'top', 'bottom', 'padleft', 'maxleft', 'center', 'maxright', 'padright'];
+    guideKeys.forEach(key => {
+      const input = document.getElementById('guide-' + key);
+      const val = document.getElementById('guide-' + key + '-val');
+      if (input) {
+        input.addEventListener('input', () => {
+          val.textContent = input.value;
+          fontMetrics[key] = parseInt(input.value);
+          renderGuides();
+        });
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      const key = e.key.toUpperCase();
+      if (LETTERS.includes(key)) {
+        selectLetter(key);
+      }
+    });
+
+    function updateCalamePreview() {
+      const thickness = parseInt(document.getElementById('thickness').value);
+      const length = parseInt(document.getElementById('length').value);
+      const angle = parseInt(document.getElementById('angle').value) * Math.PI / 180;
+
+      calamePreview.innerHTML = '';
+
+      const cx = 30;
+      const cy = 30;
+
+      const tipX = Math.cos(angle) * length * 0.8;
+      const tipY = Math.sin(angle) * length * 0.8;
+
+      const points = [
+        [cx - thickness/2, cy - thickness/2],
+        [cx + thickness/2, cy - thickness/2],
+        [cx + thickness/2 + tipX, cy + thickness/2 + tipY],
+        [cx - thickness/2 + tipX, cy - thickness/2 + tipY]
+      ];
+
+      const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      poly.setAttribute('points', points.map(p => p.join(',')).join(' '));
+      poly.setAttribute('fill', 'black');
+      calamePreview.appendChild(poly);
+    }
+
+    document.getElementById('clear-btn').onclick = () => {
+      saveState();
+      letterData[currentLetter] = [];
+      renderLetter();
+    };
+
+    document.getElementById('undo-btn').onclick = () => {
+      undo();
+    };
+
+    document.getElementById('delete-point-btn').onclick = () => {
+      const strokes = letterData[currentLetter];
+      if (strokes.length > 0) {
+        const lastStroke = strokes[strokes.length - 1];
+        if (lastStroke.points.length > 0) {
+          saveState();
+          lastStroke.points.pop();
+          lastStroke.simplified = null;
+          renderLetter();
+        }
+      }
+    };
+
+    document.getElementById('delete-stroke-btn').onclick = () => {
+      const strokes = letterData[currentLetter];
+      if (strokes.length > 0) {
+        saveState();
+        strokes.pop();
+        renderLetter();
+      }
+    };
+
+    document.getElementById('delete-selected-btn').onclick = () => {
+      deleteSelectedPoints();
+    };
+
+    document.getElementById('clear-selection-btn').onclick = () => {
+      selectedPoints.clear();
+      renderLetter();
+    };
+
+    document.getElementById('simplify-tolerance').addEventListener('input', (e) => {
+      document.getElementById('simplify-tolerance-val').textContent = e.target.value;
+    });
+
+    document.getElementById('simplify-btn').onclick = () => {
+      const tolerance = parseInt(document.getElementById('simplify-tolerance').value);
+      const strokes = letterData[currentLetter];
+      
+      if (selectedPoints.size > 0) {
+        saveState();
+        selectedPoints.forEach(key => {
+          const [si, pi] = key.split('-').map(Number);
+          const stroke = strokes[si];
+          if (stroke && stroke.points[pi]) {
+            stroke.points = simplifyPoints(stroke.points, tolerance);
+            stroke.simplified = null;
+          }
+        });
+      } else if (strokes.length > 0) {
+        saveState();
+        strokes.forEach(stroke => {
+          stroke.points = simplifyPoints(stroke.points, tolerance);
+          stroke.simplified = null;
+        });
+      }
+      renderLetter();
+    };
+
+    document.getElementById('resample-btn').onclick = () => {
+      const tolerance = parseInt(document.getElementById('simplify-tolerance').value);
+      const targetCount = Math.max(3, 50 - tolerance * 2);
+      const strokes = letterData[currentLetter];
+      
+      if (selectedPoints.size > 0) {
+        const strokesToModify = new Set();
+        selectedPoints.forEach(key => {
+          const [si] = key.split('-').map(Number);
+          strokesToModify.add(si);
+        });
+        
+        saveState();
+        strokesToModify.forEach(si => {
+          const stroke = strokes[si];
+          if (stroke) {
+            stroke.points = simplifySmoothPoints(stroke.points, targetCount);
+            stroke.simplified = null;
+          }
+        });
+      } else if (strokes.length > 0) {
+        saveState();
+        strokes.forEach(stroke => {
+          stroke.points = simplifySmoothPoints(stroke.points, targetCount);
+          stroke.simplified = null;
+        });
+      }
+      renderLetter();
+    };
+
+    document.getElementById('save-btn').onclick = () => {
+      const data = JSON.stringify({ letters: letterData, metrics: fontMetrics }, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'caligraphy.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      showStatus('Saved');
+    };
+
+    document.getElementById('export-svg-btn').onclick = () => {
+      const svgData = new XMLSerializer().serializeToString(canvas);
+      const blob = new Blob([svgData], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `letter_${currentLetter}.svg`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showStatus('Exported SVG');
+    };
+
+    const container = document.getElementById('canvas-container');
+    container.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('active');
+    });
+    container.addEventListener('dragleave', () => {
+      dropZone.classList.remove('active');
+    });
+    container.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('active');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type === 'application/json') {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const data = JSON.parse(ev.target.result);
+            if (data.letters) {
+              Object.keys(data.letters).forEach(key => {
+                if (letterData[key]) {
+                  letterData[key] = data.letters[key];
+                }
+              });
+            }
+            if (data.metrics) {
+              Object.keys(data.metrics).forEach(key => {
+                fontMetrics[key] = data.metrics[key];
+              });
+              const guideKeys = ['baseline', 'xheight', 'top', 'bottom', 'padleft', 'maxleft', 'center', 'maxright', 'padright'];
+              guideKeys.forEach(key => {
+                const input = document.getElementById('guide-' + key);
+                const val = document.getElementById('guide-' + key + '-val');
+                if (input && fontMetrics[key] !== undefined) {
+                  input.value = fontMetrics[key];
+                  val.textContent = fontMetrics[key];
+                }
+              });
+              renderGuides();
+            }
+            renderLetter();
+            showStatus('Loaded');
+          } catch (err) {
+            showStatus('Error loading file');
+          }
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    function showStatus(msg) {
+      status.textContent = msg;
+      setTimeout(() => status.textContent = '', 2000);
+    }
+
+    document.getElementById('draw-mode-btn').addEventListener('click', () => setMode('draw'));
+    document.getElementById('edit-mode-btn').addEventListener('click', () => setMode('edit'));
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setMode(currentMode === 'draw' ? 'edit' : 'draw');
+      }
+    });
+
+    initLetterList();
+    renderLetter();
+    renderGuides();
+    updateCalamePreview();
+    updateLetterButtonStates();
+  </script>
+</body>
+</html>
