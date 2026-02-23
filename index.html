@@ -463,6 +463,7 @@
     let straightLineStart = null;
     let lastClickTime = 0;
     let lastClickKey = null;
+    let altKeyPressed = false;
     const MIN_POINT_DISTANCE = 8;
     const MAX_HISTORY = 50;
     const DOUBLE_CLICK_DELAY = 300;
@@ -916,10 +917,14 @@
         } else {
           selectedPoints.add(key);
         }
+      } else if (e.altKey) {
+        selectedPoints.delete(key);
       } else if (isDoubleClick) {
         const stroke = letterData[currentLetter][strokeIndex];
         saveState();
-        selectedPoints.clear();
+        if (!e.shiftKey) {
+          selectedPoints.clear();
+        }
         stroke.points.forEach((_, pi) => {
           selectedPoints.add(getPointKey(strokeIndex, pi));
         });
@@ -1041,6 +1046,10 @@
           } else {
             selectedPoints.add(key);
           }
+        });
+      } else if (e.altKey) {
+        stroke.points.forEach((_, pi) => {
+          selectedPoints.delete(getPointKey(strokeIndex, pi));
         });
       } else {
         selectedPoints.clear();
@@ -1170,7 +1179,9 @@
           if (e.target.getAttribute('fill') === 'transparent') return;
         }
         
-        selectedPoints.clear();
+        if (!e.shiftKey && !altKeyPressed) {
+          selectedPoints.clear();
+        }
         const { x, y } = screenToSvgCoords(clientX, clientY);
         isSelectingRect = true;
         selectRectStart = { x, y, currentX: x, currentY: y };
@@ -1220,13 +1231,23 @@
         const x2 = Math.max(selectRectStart.x, selectRectStart.currentX);
         const y2 = Math.max(selectRectStart.y, selectRectStart.currentY);
         
+        if (!straightLineMode && !altKeyPressed) {
+          selectedPoints.clear();
+        }
+        
         saveState();
         
         const strokes = letterData[currentLetter];
         strokes.forEach((stroke, si) => {
           stroke.points.forEach((point, pi) => {
-            if (point.x >= x1 && point.x <= x2 && point.y >= y1 && point.y <= y2) {
-              selectedPoints.add(getPointKey(si, pi));
+            const key = getPointKey(si, pi);
+            const inRect = point.x >= x1 && point.x <= x2 && point.y >= y1 && point.y <= y2;
+            if (inRect) {
+              if (altKeyPressed) {
+                selectedPoints.delete(key);
+              } else {
+                selectedPoints.add(key);
+              }
             }
           });
         });
@@ -1254,11 +1275,17 @@
       if (e.key === 'Shift') {
         straightLineMode = true;
       }
+      if (e.key === 'Alt') {
+        altKeyPressed = true;
+      }
     });
 
     document.addEventListener('keyup', (e) => {
       if (e.key === 'Shift') {
         straightLineMode = false;
+      }
+      if (e.key === 'Alt') {
+        altKeyPressed = false;
       }
     });
 
