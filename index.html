@@ -1163,15 +1163,20 @@
         straightLineMode = e.shiftKey;
         isDrawing = true;
 
-        if (straightLineMode) {
-          straightLineStart = { x, y };
-          const stroke = { points: [{ x, y }, { x, y }], simplified: null };
-          letterData[currentLetter].push(stroke);
-          lastPoint = { x, y, stroke };
+        if (altKeyPressed && lastPoint && lastPoint.stroke) {
+          lastPoint.stroke.points.push({ x, y });
+          lastPoint = { x, y, stroke: lastPoint.stroke };
         } else {
-          const stroke = { points: [{ x, y }], simplified: null };
-          letterData[currentLetter].push(stroke);
-          lastPoint = { x, y, stroke };
+          if (straightLineMode) {
+            straightLineStart = { x, y };
+            const stroke = { points: [{ x, y }, { x, y }], simplified: null };
+            letterData[currentLetter].push(stroke);
+            lastPoint = { x, y, stroke };
+          } else {
+            const stroke = { points: [{ x, y }], simplified: null };
+            letterData[currentLetter].push(stroke);
+            lastPoint = { x, y, stroke };
+          }
         }
       } else if (currentMode === 'edit') {
         if (e.target.tagName === 'circle' || e.target.tagName === 'rect') return;
@@ -1204,6 +1209,8 @@
       }
       
       if (!isDrawing) return;
+
+      if (altKeyPressed && !straightLineMode) return;
 
       const { x, y } = screenToSvgCoords(clientX, clientY);
 
@@ -1277,12 +1284,14 @@
       if (isDrawing && lastPoint && lastPoint.stroke) {
         lastPoint.stroke.simplified = simplifyPoints(lastPoint.stroke.points, 3);
       }
-      isDrawing = false;
-      lastPoint = null;
-      straightLineStart = null;
+      if (!altKeyPressed) {
+        isDrawing = false;
+        lastPoint = null;
+        straightLineStart = null;
+      }
     }
 
-    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousedown', (e) => { e.preventDefault(); startDrawing(e); });
     canvas.addEventListener('mousemove', draw);
     canvas.addEventListener('mouseup', stopDrawing);
     canvas.addEventListener('mouseleave', stopDrawing);
@@ -1306,6 +1315,12 @@
       }
       if (e.key === 'Alt') {
         altKeyPressed = false;
+        if (currentMode === 'draw' && isDrawing && lastPoint && lastPoint.stroke) {
+          lastPoint.stroke.simplified = simplifyPoints(lastPoint.stroke.points, 3);
+          isDrawing = false;
+          lastPoint = null;
+          straightLineStart = null;
+        }
       }
     });
 
@@ -1353,14 +1368,14 @@
       const cx = 30;
       const cy = 30;
 
-      const tipX = Math.cos(angle) * length * 0.8;
-      const tipY = Math.sin(angle) * length * 0.8;
+      const tipX = Math.cos(angle) * length;
+      const tipY = Math.sin(angle) * length;
 
       const points = [
         [cx - thickness/2, cy - thickness/2],
         [cx + thickness/2, cy - thickness/2],
         [cx + thickness/2 + tipX, cy + thickness/2 + tipY],
-        [cx - thickness/2 + tipX, cy - thickness/2 + tipY]
+        [cx - thickness/2 + tipX, cy + thickness/2 + tipY]
       ];
 
       const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
